@@ -132,4 +132,48 @@ const logout = async (req, res) => {
   }
 }
 
-module.exports = { register, login, logout }
+const refresh = async (req, res) => {
+  try {
+    const { refreshToken } = req.body
+    if (!refreshToken) {
+      return res.status(400).json({ error: 'Refresh token requerido' })
+    }
+
+    const blacklisted = await redis.get(`blacklist:${refreshToken}`)
+    if (blacklisted) {
+      return res.status(401).json({ error: 'Token inválido' })
+    }
+
+    const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET)
+
+    const session = await prisma.session.findUnique({
+      where: { token: refreshToken }
+    })
+    if (!session || session.expiresAt < new Date()) {
+      return res.status(401).json({ error: 'Sesión expirada' })
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: decoded.userId } })
+    if (!user) {
+      return res.status(401).json({ error: 'Usuario no encontrado' })
+    }
+
+    const { accessToken, refreshToken: newRefreshToken } = generateTokens(user.id, user.role)
+
+    await prisma.session.update({
+      where: { token: refreshToken },
+      data: {
+        token: newRefreshToken,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+      }
+    })
+
+    const ttl = decoded.exp - Math.floor(Date.now() / 1000)
+    if (ttl > 0) await redis.setex(`blacklist:${refreshToken}`, ttl, '1')
+
+    res.json({ accessToken, refreshToken: newRefreshToken })
+  } catch (error) {
+    return res.status(401).json({ error: 'Token inválido o expirado' })
+  }
+}
+module.exports = { register, login, logout, refresh }
