@@ -10,8 +10,4 @@ RUN npx prisma generate
 
 COPY src ./src
 
-EXPOSE $PORT
-
-ENV PORT=8080
-
 CMD ["node", "src/index.js"]
