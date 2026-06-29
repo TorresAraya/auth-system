@@ -18,6 +18,20 @@ const twoFactorRoutes = require('./routes/twofactor.routes')
 app.use('/api/2fa', twoFactorRoutes)
 const adminRoutes = require('./routes/admin.routes')
 app.use('/api/admin', adminRoutes)
+app.get('/', (req, res) => {
+  res.json({
+    name: 'Auth System API',
+    version: '1.0.0',
+    status: 'running',
+    docs: {
+      health: '/health',
+      auth: '/api/auth/register | /api/auth/login | /api/auth/logout | /api/auth/refresh',
+      user: '/api/user/me',
+      twoFactor: '/api/2fa/setup | /api/2fa/verify | /api/2fa/disable',
+      admin: '/api/admin/users | /api/admin/audit-log'
+    }
+  })
+})
 app.get('/health', (req, res) => {
   res.json({ status: 'ok' })
 })
