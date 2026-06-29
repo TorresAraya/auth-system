@@ -1,6 +1,6 @@
 const express = require('express')
 const router = express.Router()
-const { setup2FA, verify2FA, disable2FA } = require('../controllers/twoFactor.controller')
+const { setup2FA, verify2FA, disable2FA } = require('../controllers/twofactor.controller')
 const { verifyToken } = require('../middleware/auth.middleware')
 
 router.post('/setup', verifyToken, setup2FA)
