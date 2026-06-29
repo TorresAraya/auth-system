@@ -1,30 +1,40 @@
 # Auth System API
 
-API REST de autenticación completa construida con Node.js, JWT, bcrypt y Redis. Diseñada como módulo reutilizable para cualquier aplicación.
+API REST de autenticación completa construida con Node.js, Express, PostgreSQL y Redis. Diseñada como módulo reutilizable y production-ready para cualquier aplicación.
+
+🔗 **Live:** https://auth-system-production-acf7.up.railway.app
+
+---
 
 ## Características
 
 - Registro y login con email y contraseña
 - Tokens JWT con access token (15min) y refresh token (7 días)
-- Rotación automática de refresh token
-- Blacklist de tokens en Redis
-- Autenticación en dos factores (2FA) con TOTP
-- Control de roles (USER / ADMIN)
+- Rotación automática de refresh token con blacklist en Redis
+- Autenticación en dos factores (2FA) con TOTP compatible con Google Authenticator
+- Control de roles granular (USER / ADMIN)
 - Panel de administración de usuarios
-- Audit log automático de acciones sensibles
-- Sesiones por dispositivo en base de datos
+- Audit log automático de todas las acciones sensibles
+- Sesiones por dispositivo almacenadas en base de datos
+- Rate limiting y protección con Helmet
+
+---
 
 ## Tecnologías
 
-- **Runtime:** Node.js
-- **Framework:** Express
-- **Base de datos:** PostgreSQL + Prisma ORM
-- **Caché / Sesiones:** Redis
-- **Autenticación:** JWT, bcrypt
-- **2FA:** speakeasy (TOTP), qrcode
-- **Infraestructura:** Docker
+| Capa | Tecnología |
+|------|-----------|
+| Runtime | Node.js |
+| Framework | Express |
+| Base de datos | PostgreSQL + Prisma ORM |
+| Caché / Sesiones | Redis |
+| Autenticación | JWT, bcrypt (saltRounds 12) |
+| 2FA | speakeasy (TOTP), qrcode |
+| Infraestructura | Docker, Railway |
 
-## Instalación
+---
+
+## Instalación local
 
 ### Requisitos
 
@@ -54,9 +64,11 @@ npx prisma migrate dev
 npm run dev
 ```
 
-## Variables de entorno
+El servidor arranca en `http://localhost:3000`.
 
-Crea un archivo `.env` con los siguientes valores:
+---
+
+## Variables de entorno
 
 ```env
 DATABASE_URL="postgresql://authuser:authpass@localhost:5432/authdb"
@@ -68,46 +80,50 @@ JWT_REFRESH_EXPIRES_IN="7d"
 PORT=3000
 ```
 
+---
+
 ## Endpoints
 
-### Auth
+### Auth — público
 
-| Método | Ruta 	        | Descripción 	       | Auth |
-|--------|----------------------|----------------------|------|
-| POST   | `/api/auth/register` | Registro de usuario  | No   |
-| POST   | `/api/auth/login`    | Login                | No   |
-| POST   | `/api/auth/logout`   | Cerrar sesión        | No   |
-| POST   | `/api/auth/refresh`  | Renovar access token | No   |
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| POST | `/api/auth/register` | Registro con email y contraseña |
+| POST | `/api/auth/login` | Login, devuelve access + refresh token |
+| POST | `/api/auth/logout` | Invalida el refresh token |
+| POST | `/api/auth/refresh` | Rota el refresh token y devuelve nuevo access token |
 
-### Usuario
+### Usuario — requiere token
 
-| Método | Ruta 	  | Descripción 	     | Auth |
-|--------|----------------|--------------------------|------|
-| GET 	 | `/api/user/me` | Datos del usuario actual | Sí   |
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| GET | `/api/user/me` | Datos del usuario autenticado |
 
-### 2FA
+### 2FA — requiere token
 
-| Método | Ruta 	      | Descripción 		       | Auth |
-|--------|--------------------|--------------------------------|------|
-| POST   | `/api/2fa/setup`   | Generar QR para activar 2FA    | Sí   |
-| POST   | `/api/2fa/verify`  | Verificar código y activar 2FA | Sí   |
-| POST   | `/api/2fa/disable` | Desactivar 2FA                 | Sí   |
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| POST | `/api/2fa/setup` | Genera QR para activar 2FA |
+| POST | `/api/2fa/verify` | Verifica código TOTP y activa 2FA |
+| POST | `/api/2fa/disable` | Desactiva 2FA |
 
-### Admin
+### Admin — requiere rol ADMIN
 
-| Método | Ruta 		       | Descripción 		   | Auth  |
-|--------|-----------------------------|---------------------------|-------|
-| GET    | `/api/admin/users` 	       | Listar todos los usuarios | ADMIN |
-| PATCH  | `/api/admin/users/:id/role` | Cambiar rol de usuario    | ADMIN |
-| DELETE | `/api/admin/users/:id`      | Eliminar usuario 	   | ADMIN |
-| GET    | `/api/admin/audit-log`      | Ver audit log 		   | ADMIN |
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| GET | `/api/admin/users` | Lista todos los usuarios |
+| PATCH | `/api/admin/users/:id/role` | Cambia el rol de un usuario |
+| DELETE | `/api/admin/users/:id` | Elimina un usuario |
+| GET | `/api/admin/audit-log` | Historial de acciones sensibles |
+
+---
 
 ## Ejemplos de uso
 
 ### Registro
 
 ```bash
-curl -X POST http://localhost:3000/api/auth/register \
+curl -X POST https://auth-system-production-acf7.up.railway.app/api/auth/register \
   -H "Content-Type: application/json" \
   -d '{"email":"user@example.com","password":"123456","name":"John Doe"}'
 ```
@@ -115,7 +131,7 @@ curl -X POST http://localhost:3000/api/auth/register \
 ### Login
 
 ```bash
-curl -X POST http://localhost:3000/api/auth/login \
+curl -X POST https://auth-system-production-acf7.up.railway.app/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email":"user@example.com","password":"123456"}'
 ```
@@ -123,9 +139,11 @@ curl -X POST http://localhost:3000/api/auth/login \
 ### Ruta protegida
 
 ```bash
-curl http://localhost:3000/api/user/me \
+curl https://auth-system-production-acf7.up.railway.app/api/user/me \
   -H "Authorization: Bearer TU_ACCESS_TOKEN"
 ```
+
+---
 
 ## Arquitectura
 
@@ -140,7 +158,7 @@ src/
 ├── routes/            # Definición de endpoints
 │   ├── auth.routes.js
 │   ├── user.routes.js
-│   ├── twoFactor.routes.js
+│   ├── twofactor.routes.js
 │   └── admin.routes.js
 ├── lib/               # Conexiones a servicios
 │   ├── prisma.js
@@ -148,13 +166,18 @@ src/
 └── index.js           # Entrada de la aplicación
 ```
 
+---
+
 ## Decisiones técnicas
 
 **¿Por qué access token corto (15min) + refresh token largo (7 días)?**
-Minimiza la ventana de exposición si un access token se filtra, sin obligar al usuario a hacer login constantemente.
+Minimiza la ventana de exposición si un access token se filtra, sin obligar al usuario a hacer login constantemente. La rotación del refresh token en cada uso añade una capa extra de seguridad.
 
 **¿Por qué Redis para la blacklist?**
-Los JWT son stateless por diseño. Redis permite invalidar tokens antes de su expiración de forma eficiente sin consultar PostgreSQL en cada request.
+Los JWT son stateless por diseño. Redis permite invalidar tokens antes de su expiración de forma eficiente sin consultar PostgreSQL en cada request, con TTL automático que evita acumulación de datos.
 
 **¿Por qué bcrypt con saltRounds 12?**
-Con 12 rondas un hash tarda ~300ms, aceptable para el usuario pero prohibitivo para ataques de fuerza bruta.
+Con 12 rondas un hash tarda ~300ms en un servidor moderno, aceptable para el usuario pero prohibitivo para ataques de fuerza bruta automatizados.
+
+**¿Por qué Prisma como ORM?**
+Proporciona tipado, migraciones versionadas y una API de consulta expresiva que reduce errores y acelera el desarrollo sin sacrificar control sobre las queries.
