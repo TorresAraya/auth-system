@@ -10,7 +10,7 @@ RUN npx prisma generate
 
 COPY src ./src
 
-EXPOSE 8080
+EXPOSE $PORT
 
 ENV PORT=8080
 
