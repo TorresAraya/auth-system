@@ -4,6 +4,8 @@ API REST de autenticación completa construida con Node.js, Express, PostgreSQL 
 
 🔗 **Live:** https://auth-system-production-acf7.up.railway.app
 
+Usado como microservicio de autenticación por [LoL RAG Assistant](https://github.com/TorresAraya/lol-rag-assistant) — un asistente de IA con RAG que valida tokens JWT contra este servicio sin compartir secretos entre proyectos.
+
 ---
 
 ## Características
