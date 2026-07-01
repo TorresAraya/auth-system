@@ -1,5 +1,7 @@
 const prisma = require('../lib/prisma')
 
+const isNotFound = (error) => error?.code === 'P2025'
+
 const getUsers = async (req, res) => {
   try {
     const users = await prisma.user.findMany({
@@ -46,6 +48,7 @@ const updateRole = async (req, res) => {
 
     res.json(user)
   } catch (error) {
+    if (isNotFound(error)) return res.status(404).json({ error: 'Usuario no encontrado' })
     console.error(error)
     res.status(500).json({ error: 'Error interno del servidor' })
   }
@@ -72,6 +75,7 @@ const deleteUser = async (req, res) => {
 
     res.json({ message: 'Usuario eliminado correctamente' })
   } catch (error) {
+    if (isNotFound(error)) return res.status(404).json({ error: 'Usuario no encontrado' })
     console.error(error)
     res.status(500).json({ error: 'Error interno del servidor' })
   }

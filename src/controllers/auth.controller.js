@@ -3,6 +3,8 @@ const jwt = require('jsonwebtoken')
 const prisma = require('../lib/prisma')
 const redis = require('../lib/redis')
 
+const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000
+
 const generateTokens = (userId, role) => {
   const accessToken = jwt.sign(
     { userId, role },
@@ -42,7 +44,7 @@ const register = async (req, res) => {
       data: {
         userId: user.id,
         token: refreshToken,
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+        expiresAt: new Date(Date.now() + SESSION_TTL_MS)
       }
     })
 
@@ -87,7 +89,7 @@ const login = async (req, res) => {
         userId: user.id,
         token: refreshToken,
         ip: req.ip,
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+        expiresAt: new Date(Date.now() + SESSION_TTL_MS)
       }
     })
 
@@ -123,7 +125,7 @@ const logout = async (req, res) => {
       }
     } catch (_) {}
 
-    const tokenUserId = (() => { try { return jwt.decode(refreshToken)?.userId } catch (_) { return null } })()
+    const tokenUserId = jwt.decode(refreshToken)?.userId ?? null
     await prisma.auditLog.create({
       data: { userId: tokenUserId || null, action: 'LOGOUT', ip: req.ip }
     })
@@ -167,7 +169,7 @@ const refresh = async (req, res) => {
       where: { token: refreshToken },
       data: {
         token: newRefreshToken,
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+        expiresAt: new Date(Date.now() + SESSION_TTL_MS)
       }
     })
 
