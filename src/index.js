@@ -2,6 +2,14 @@ const express = require('express')
 const cors = require('cors')
 const helmet = require('helmet')
 require('dotenv').config()
+
+const REQUIRED_ENV = ['JWT_SECRET', 'JWT_REFRESH_SECRET', 'DATABASE_URL']
+const missing = REQUIRED_ENV.filter(k => !process.env[k])
+if (missing.length > 0) {
+  console.error(`Error: variables de entorno requeridas no definidas: ${missing.join(', ')}`)
+  process.exit(1)
+}
+
 require('./lib/prisma')
 require('./lib/redis')
 

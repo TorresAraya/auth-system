@@ -115,14 +115,17 @@ const logout = async (req, res) => {
 
     await prisma.session.deleteMany({ where: { token: refreshToken } })
 
-    const decoded = jwt.decode(refreshToken)
-    if (decoded?.exp) {
-      const ttl = decoded.exp - Math.floor(Date.now() / 1000)
-      if (ttl > 0) await redis.setex(`blacklist:${refreshToken}`, ttl, '1')
-    }
+    try {
+      const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET)
+      if (decoded?.exp) {
+        const ttl = decoded.exp - Math.floor(Date.now() / 1000)
+        if (ttl > 0) await redis.setex(`blacklist:${refreshToken}`, ttl, '1')
+      }
+    } catch (_) {}
 
+    const tokenUserId = (() => { try { return jwt.decode(refreshToken)?.userId } catch (_) { return null } })()
     await prisma.auditLog.create({
-      data: { action: 'LOGOUT', ip: req.ip }
+      data: { userId: tokenUserId || null, action: 'LOGOUT', ip: req.ip }
     })
 
     res.json({ message: 'Sesión cerrada correctamente' })
