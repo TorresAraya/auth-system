@@ -2,10 +2,23 @@ const speakeasy = require('speakeasy')
 const QRCode = require('qrcode')
 const prisma = require('../lib/prisma')
 
+const verifyTOTPCode = async (userId, code) => {
+  const user = await prisma.user.findUnique({ where: { id: userId } })
+  if (!user?.twoFactorSecret) return { user: null, valid: false }
+  const valid = speakeasy.totp.verify({
+    secret: user.twoFactorSecret,
+    encoding: 'base32',
+    token: code,
+    window: 1
+  })
+  return { user, valid }
+}
+
 const setup2FA = async (req, res) => {
   try {
+    const user = await prisma.user.findUnique({ where: { id: req.user.userId } })
     const secret = speakeasy.generateSecret({
-      name: `AuthSystem (${req.user.userId})`
+      name: `AuthSystem (${user.email})`
     })
 
     await prisma.user.update({
@@ -15,10 +28,7 @@ const setup2FA = async (req, res) => {
 
     const qrCode = await QRCode.toDataURL(secret.otpauth_url)
 
-    res.json({
-      secret: secret.base32,
-      qrCode
-    })
+    res.json({ secret: secret.base32, qrCode })
   } catch (error) {
     console.error(error)
     res.status(500).json({ error: 'Error interno del servidor' })
@@ -28,25 +38,11 @@ const setup2FA = async (req, res) => {
 const verify2FA = async (req, res) => {
   try {
     const { code } = req.body
-    if (!code) {
-      return res.status(400).json({ error: 'Código requerido' })
-    }
+    if (!code) return res.status(400).json({ error: 'Código requerido' })
 
-    const user = await prisma.user.findUnique({ where: { id: req.user.userId } })
-    if (!user?.twoFactorSecret) {
-      return res.status(400).json({ error: '2FA no configurado' })
-    }
-
-    const valid = speakeasy.totp.verify({
-      secret: user.twoFactorSecret,
-      encoding: 'base32',
-      token: code,
-      window: 1
-    })
-
-    if (!valid) {
-      return res.status(401).json({ error: 'Código incorrecto' })
-    }
+    const { user, valid } = await verifyTOTPCode(req.user.userId, code)
+    if (!user) return res.status(400).json({ error: '2FA no configurado' })
+    if (!valid) return res.status(401).json({ error: 'Código incorrecto' })
 
     await prisma.user.update({
       where: { id: req.user.userId },
@@ -67,18 +63,11 @@ const verify2FA = async (req, res) => {
 const disable2FA = async (req, res) => {
   try {
     const { code } = req.body
-    const user = await prisma.user.findUnique({ where: { id: req.user.userId } })
+    if (!code) return res.status(400).json({ error: 'Código requerido' })
 
-    const valid = speakeasy.totp.verify({
-      secret: user.twoFactorSecret,
-      encoding: 'base32',
-      token: code,
-      window: 1
-    })
-
-    if (!valid) {
-      return res.status(401).json({ error: 'Código incorrecto' })
-    }
+    const { user, valid } = await verifyTOTPCode(req.user.userId, code)
+    if (!user) return res.status(400).json({ error: '2FA no configurado' })
+    if (!valid) return res.status(401).json({ error: 'Código incorrecto' })
 
     await prisma.user.update({
       where: { id: req.user.userId },
